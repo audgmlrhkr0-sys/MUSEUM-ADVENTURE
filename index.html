@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>미술관 탐험 — 3D 갤러리 탈출</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="container">
+        <div id="instructions">
+            <div class="start-screen">
+                <div class="start-screen-header"></div>
+                <div class="start-screen-body">
+                    <p class="start-label">GALLERY</p>
+                    <h1 class="start-title">미술관 탐험</h1>
+                    <div class="start-objective" id="gameObjective">경비원을 피해 열쇠 5개를 모아서 출구로 탈출하세요!</div>
+                    <button id="startButton">전시장 입장</button>
+                    <div class="start-controls" id="controls">WASD 이동 · 마우스 시점 · 스페이스 작품 감상 · ESC 메뉴</div>
+                </div>
+                <div class="start-screen-footer"></div>
+            </div>
+        </div>
+        <div id="artworkPrompt" class="hidden">
+            <p>스페이스 키를 눌러 작품 상호작용</p>
+        </div>
+        <div id="artworkDialog" class="hidden">
+            <div id="dialogContent">
+                <p id="dialogMessage"></p>
+                <div id="dialogChoices" class="hidden">
+                    <div class="choice-item">작품을 본다</div>
+                    <div class="choice-item">그만둔다</div>
+                    <p class="dialog-choice-hint">W 위 / S 아래 · 스페이스 선택</p>
+                </div>
+                <button id="dialogNext" class="dialog-button hidden">다음 (스페이스)</button>
+            </div>
+        </div>
+        <div id="artworkInfo" class="hidden">
+            <h2 id="artworkTitle"></h2>
+            <p id="artworkMaterial"></p>
+            <p id="artworkSize"></p>
+            <p id="artworkYear"></p>
+            <p id="artworkDescription"></p>
+        </div>
+        <div id="gameOver" class="hidden">
+            <div class="result-panel">
+                <h1>게임 오버</h1>
+                <p>경비원에게 잡혔습니다...</p>
+                <button id="restartButton">다시하기</button>
+            </div>
+        </div>
+        <div id="gameClear" class="hidden">
+            <div class="result-panel">
+                <h1>게임 클리어</h1>
+                <p>모든 열쇠를 모아 출구로 탈출했습니다!</p>
+                <button id="restartButton2">다시하기</button>
+            </div>
+        </div>
+        <div id="keyNotification" class="hidden">
+            <p>열쇠를 획득했습니다!</p>
+        </div>
+        <div id="inventory" class="hidden">
+            <h3>인벤토리</h3>
+            <div id="keySlots">
+                <div class="key-slot" data-key="0"></div>
+                <div class="key-slot" data-key="1"></div>
+                <div class="key-slot" data-key="2"></div>
+                <div class="key-slot" data-key="3"></div>
+                <div class="key-slot" data-key="4"></div>
+            </div>
+        </div>
+        <div id="timer" class="hidden">
+            <span id="timerText">03:00</span>
+        </div>
+        <canvas id="canvas"></canvas>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="main.js?v=3"></script>
+</body>
+</html>
+
