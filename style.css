@@ -579,9 +579,38 @@ body.locked {
 
 #dialogMessage {
     font-size: 1.45em;
-    line-height: 1.8;
+    line-height: 1.7;
     color: #f5f5dc;
     min-height: 64px;
+    text-align: center;
+}
+
+#dialogMessage .artwork-caption {
+    font-size: 0.82em;
+    line-height: 1.4;
+    margin-bottom: 0.6em;
+    color: #ffd700;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: 100%;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+    text-align: center;
+}
+
+@media (max-width: 720px) {
+    #dialogMessage .artwork-caption {
+        white-space: normal;
+        text-overflow: clip;
+    }
+}
+
+#dialogMessage .artwork-description {
+    font-size: 0.78rem;
+    line-height: 1.7;
+    margin-top: 0;
+    color: #ddd;
+    text-align: center;
 }
 
 #dialogChoices {

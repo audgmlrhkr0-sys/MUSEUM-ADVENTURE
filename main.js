@@ -230,7 +230,42 @@ function closeArtworkDialog() {
 
 function showDialogMessage(message) {
     const messageEl = document.getElementById('dialogMessage');
-    messageEl.textContent = message;
+    messageEl.innerHTML = '';
+    messageEl.appendChild(document.createTextNode(message));
+}
+
+function breakAtPunctuation(text, maxLen) {
+    if (!text || text.length <= maxLen) return text;
+    var out = '', start = 0;
+    var punct = /[,.\u3002\uFF0E]/; // 쉼표, 마침표, 。, ．(전각 마침표)
+    while (start < text.length) {
+        var chunk = text.slice(start, start + maxLen + 80);
+        var breakAt = -1;
+        for (var i = Math.min(chunk.length, maxLen); i >= 0; i--) {
+            if (punct.test(chunk[i])) {
+                breakAt = i + 1;
+                break;
+            }
+        }
+        if (breakAt <= 0) breakAt = Math.min(chunk.length, maxLen);
+        out += text.slice(start, start + breakAt).trim();
+        start += breakAt;
+        if (start < text.length) out += '\n';
+    }
+    return out;
+}
+
+function showArtworkContent(caption, description) {
+    const messageEl = document.getElementById('dialogMessage');
+    messageEl.innerHTML = '';
+    var cap = document.createElement('p');
+    cap.className = 'artwork-caption';
+    cap.textContent = caption || '';
+    var desc = document.createElement('p');
+    desc.className = 'artwork-description';
+    desc.textContent = description || '';
+    messageEl.appendChild(cap);
+    messageEl.appendChild(desc);
 }
 
 function showDialogChoices(show) {
@@ -301,10 +336,10 @@ function viewArtwork() {
     const info = currentArtwork.info;
     showDialogChoices(false);
     
-    // 무조건 작품 설명 먼저 표시
+    // 무조건 작품 설명 먼저 표시 (캡션과 설명 다른 문단으로 구분)
     dialogState = 'viewing';
-    const artworkInfo = `${info.title}\n\n재료: ${info.material}\n크기: ${info.size}\n년도: ${info.year}\n\n${info.description}`;
-    showDialogMessage(artworkInfo);
+    const captionLine = info.caption || info.title;
+    showArtworkContent(captionLine, info.description || "");
     showDialogNext();
 }
 
@@ -593,7 +628,7 @@ function openExit() {
         top: 30%;
         left: 50%;
         transform: translateX(-50%);
-        background: transparent;
+        background: rgba(0, 0, 0, 0.75);
         color: #fff8dc;
         padding: 32px 58px;
         border-radius: 14px;
@@ -601,8 +636,9 @@ function openExit() {
         font-weight: bold;
         z-index: 200;
         text-align: center;
-        box-shadow: none;
-        text-shadow: 0 0 20px rgba(255, 245, 200, 0.95), 0 0 40px rgba(255, 230, 180, 0.7), 0 0 60px rgba(255, 220, 150, 0.5);
+        border: 3px solid rgba(255, 220, 150, 0.9);
+        box-shadow: 0 0 20px rgba(0,0,0,0.6), 0 0 40px rgba(255, 220, 150, 0.3), inset 0 0 20px rgba(255,245,200,0.08);
+        text-shadow: 0 0 20px rgba(255, 245, 200, 0.95), 0 0 40px rgba(255, 230, 180, 0.7), 0 1px 2px rgba(0,0,0,0.9), 1px 1px 0 rgba(0,0,0,0.8), -1px -1px 0 rgba(0,0,0,0.8);
         animation: exitNotifyGlow 1.2s ease-in-out infinite;
     `;
     document.body.appendChild(exitNotification);
@@ -787,14 +823,15 @@ window.addEventListener('blur', resetMovementKeys);
 // 작품 정보 배열
 const artworks = [];
 
-// 작품 정보 생성 함수
-function createArtworkInfo(title, material, size, year, description) {
+// 작품 정보 생성 함수 (캡션=한 줄, 설명=별도)
+function createArtworkInfo(title, material, size, year, description, caption) {
     return {
         title: title,
         material: material,
         size: size,
         year: year,
-        description: description
+        description: description,
+        caption: caption != null ? caption : (title + ", " + year + ", " + material + ", " + size)
     };
 }
 
@@ -990,24 +1027,6 @@ function createGallery() {
             
             function addToScene() {
                 if (frameGroup.userData.addedToScene) return;
-                var slot12 = frameGroup.userData.slotIndex === 12;
-                if (slot12) {
-                    for (var d = artworks.length - 1; d >= 0; d--) {
-                        if (artworks[d].frame && artworks[d].frame.userData.slotIndex === 12) {
-                            if (artworks[d].frame.parent) artworks[d].frame.parent.remove(artworks[d].frame);
-                            artworks.splice(d, 1);
-                        }
-                    }
-                    if (parentGroup) {
-                        var px = position.x, py = position.y, pz = position.z;
-                        for (var c = parentGroup.children.length - 1; c >= 0; c--) {
-                            var ch = parentGroup.children[c];
-                            if (ch !== frameGroup && ch.position && Math.abs(ch.position.x - px) < 0.02 && Math.abs(ch.position.y - py) < 0.02 && Math.abs(ch.position.z - pz) < 0.02) {
-                                parentGroup.remove(ch);
-                            }
-                        }
-                    }
-                }
                 if (typeof frameGroup.userData.slotIndex === 'number' && artworks.some(function(a) { return a.frame && a.frame.userData.slotIndex === frameGroup.userData.slotIndex; })) return;
                 frameGroup.userData.addedToScene = true;
                 if (artworks.some(function(a) { return a.frame === frameGroup; })) return;
@@ -1035,8 +1054,8 @@ function createGallery() {
                     loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
                     loadedTexture.minFilter = THREE.LinearFilter;
                     loadedTexture.magFilter = THREE.LinearFilter;
-                    // 9.jpg: -90도 회전하여 세로 비율로 표시
-                    if (typeof slotIndex === 'number' && slotIndex === 8) {
+                    // 9.jpg (슬롯 8 또는 32): -90도 회전하여 세로 비율로 표시
+                    if (typeof slotIndex === 'number' && slotIndex % 24 === 8) {
                         loadedTexture.rotation = -Math.PI / 2;
                         loadedTexture.center.set(0.5, 0.5);
                     }
@@ -1048,14 +1067,25 @@ function createGallery() {
                 },
                 undefined,
                 function(error) {
-                    const fallbackList = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpeg', '6.jpg', '7.png', '8.jpg', '9.jpg', '10.jpg', '11.jpg', '12.jpg'];
+                    // 현재 이미지 제외한 나머지 전부 폴백 (17.jpg 등 확장자 차이 시 .jpeg 먼저 시도)
+                    const allImages = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpeg', '6.jpg', '7.png', '8.jpg', '9.jpg', '10.jpg', '11.jpg', '12.jpg', '13.jpg', '14.jpg', '15.jpg', '16.jpg', '17.jpg', '18.jpg', '19.jpg', '20.jpg', '21.jpg', '22.jpg', '23.jpg', '24.jpg'];
+                    var fallbackList = allImages.filter(function(f) { return f !== imageUrl; });
+                    var altExt = imageUrl.replace(/\.jpe?g$/i, function(m) { return m.toLowerCase() === '.jpg' ? '.jpeg' : '.jpg'; });
+                    if (altExt !== imageUrl && fallbackList.indexOf(altExt) === -1) fallbackList.unshift(altExt);
                     let tried = 0;
                     function tryNext() {
                         if (tried >= fallbackList.length) {
-                            // 모든 로드 실패 시에도 프레임은 씬에 추가 (회색 플레이스홀더, 별빛 아래 등 누락 방지)
+                            // 모든 로드 실패 시에도 프레임은 씬에 추가 (로드 안 된 작품이 더 잘 보이도록 밝은 회색+발광)
                             if (picture && picture.material) {
                                 picture.material.dispose();
-                                picture.material = new THREE.MeshStandardMaterial({ color: 0x555555, side: THREE.FrontSide, roughness: 0.9, metalness: 0 });
+                                picture.material = new THREE.MeshStandardMaterial({
+                                    color: 0xa0a0a0,
+                                    emissive: 0x555555,
+                                    emissiveIntensity: 0.4,
+                                    side: THREE.FrontSide,
+                                    roughness: 0.8,
+                                    metalness: 0.05
+                                });
                             }
                             addToScene();
                             return;
@@ -1142,29 +1172,91 @@ function createGallery() {
     const pictureY = 5; // 벽 중앙 높이 (wallHeight / 2 = 10 / 2 = 5)
     const pictureOffset = 0.01; // 벽에 완전히 붙이기 (프레임 두께 고려 최소값)
     
-    // 작품 정보 샘플 데이터
+    // 작품 정보 (1.jpg~24.jpg 순서)
     const artworkTitles = [
-        "밤하늘의 별들", "도시의 빛", "자연의 선율", "추상의 세계", "시간의 흐름",
-        "고요한 호수", "바람의 노래", "색채의 춤", "기억의 조각", "꿈의 여행",
-        "고독한 나무", "바다의 파도", "산의 정상", "새벽의 안개", "황혼의 노을",
-        "도시의 야경", "숲속의 길", "강의 흐름", "구름의 그림자", "별빛 아래",
-        "가을의 낙엽", "겨울의 눈", "봄의 꽃", "여름의 햇살", "계절의 순환",
-        "고요한 평원", "거친 바위", "부드러운 모래", "차가운 얼음", "따뜻한 불"
+        "김소연, <勢>", "나탈리아 부텐노바, <Moscow, Arbet, Sunday>", "노태범, <現代人을 위한 符>", "라리사 누리(Larissa Noury), <chapel: light of the paddle>",
+        "라리사 코샤코바(Larisa Kosyakova), <The square in a small town>", "백진화, <연두>", "솔로몬 이세케이예(Solomon Isekeije), <Iya Agba - Ⅱ>", "스테판 홀트(Steffen Rault), <Global-climate-are-you-cirrus-009>",
+        "안나 보그다노바(Anna Bogdanova), <Optical glass>", "엘레나 수마코바(Elena Shumakova), <아침식사>", "요크 힐버트(Joerg Hilbert), <RITTER ROST: The iron castle>", "이승찬, <무제>",
+        "이카와 세이료, <Peinture No.7>", "이향, <시간위에>", "장용근, <보이지 않는 노동 #3>", "조경희, <Shadow>",
+        "차장섭, <도(道)와 이(理)를 즐기고 완성하다 – 안동 도산서당 완락재>", "최진주, <기지개>", "케세니아 네치텔로, <Sochi>", "호망 지베흐(Romain Gilbert), <Venice series – untited 01>",
+        "우주연, <Thousand Hands>", "진 C. 마벨(Jean C. Marvel), <A Tree Grows in Washington>", "조덕연, <회상(回想) - 그리움>", "정용국, <Where is happy?>"
     ];
-    const materials = ["유화", "아크릴", "수채화", "파스텔", "연필", "목탄", "잉크", "혼합재료"];
-    const sizes = ["50x70cm", "60x80cm", "70x90cm", "80x100cm", "90x120cm", "100x150cm"];
-    const years = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
+    const materials = [
+        "종이, 혼합재료", "에칭, 동판화", "한지, 먹, 토분", "혼합재료, 오일안료",
+        "유화", "혼합재료", "Plastagraphy Relief", "C-print",
+        "종이, 파스텔", "유화", "디지털 프린트", "종이에 채색",
+        "종이, 아크릴, 종이접기", "종이에 채색", "피그먼트 프린트", "거울, 스타킹",
+        "종이에 디지털 피그먼트 프린트", "장지, 먹, 색", "유화", "C-print",
+        "디지털 프린트", "혼합재료", "종이, 아크릴", "한지에 수묵"
+    ];
+    const sizes = [
+        "38˟47cm", "24.5˟31.5cm", "170˟130cm", "28.5˟28.5cm",
+        "90˟80cm", "60.5˟72cm", "(Plastagraphy Relief)", "120˟173cm",
+        "70˟50cm", "56˟71cm", "34˟60cm", "65.5˟69.5cm",
+        "34.5˟40.5cm", "59˟72cm", "100˟150cm", "40˟40cm",
+        "40˟57cm", "70˟100cm", "70˟90cm", "20˟30cm",
+        "81˟60.4cm", "19˟4˟39cm", "68˟50cm", "83˟70cm"
+    ];
+    const years = [
+        2002, 1988, 1990, "연도미상",
+        2011, "연도미상", 2014, 2011,
+        2009, "연도미상", 2011, 1993,
+        "연도미상", 2005, 2016, 2007,
+        2016, 2003, 2009, 2009,
+        2007, "연도미상", 2001, 2007
+    ];
+    // 캡션 (한 줄, 크기/재료 라벨 없이)
+    const captions = [
+        "김소연, <勢>, 2002, 종이, 혼합재료, 38˟47cm",
+        "나탈리아 부텐노바, <Moscow, Arbet, Sunday>, 1988, 에칭, 동판화, 24.5˟31.5cm",
+        "노태범, <現代人을 위한 符>, 1990, 한지, 먹, 토분, 170˟130cm",
+        "라리사 누리(Larissa Noury), <chapel: light of the paddle>, 연도미상, 혼합재료, 오일안료, 28.5˟28.5cm",
+        "라리사 코샤코바(Larisa Kosyakova), <The square in a small town>, 2011, 유화, 90˟80cm",
+        "백진화, <연두>, 연도미상, 혼합재료, 60.5˟72cm",
+        "솔로몬 이세케이예(Solomon Isekeije), <Iya Agba - Ⅱ>, 2014, Plastagraphy Relief",
+        "스테판 홀트(Steffen Rault), <Global-climate-are-you-cirrus-009>, 2011, C-print, 120˟173cm",
+        "안나 보그다노바(Anna Bogdanova), <Optical glass>, 2009, 종이, 파스텔, 70˟50cm",
+        "엘레나 수마코바(Elena Shumakova), <아침식사>, 연도미상, 유화, 56˟71cm",
+        "요크 힐버트(Joerg Hilbert), <RITTER ROST: The iron castle>, 2011, 디지털 프린트, 34˟60cm",
+        "이승찬, <무제>, 1993, 종이에 채색, 65.5˟69.5cm",
+        "이카와 세이료, <Peinture No.7>, 연도미상, 종이, 아크릴, 종이접기, 34.5˟40.5cm",
+        "이향, <시간위에>, 2005, 종이에 채색, 59˟72cm",
+        "장용근, <보이지 않는 노동 #3>, 2016, 피그먼트 프린트, 100˟150cm",
+        "조경희, <Shadow>, 2007, 거울, 스타킹, 40˟40cm",
+        "차장섭, <도(道)와 이(理)를 즐기고 완성하다 – 안동 도산서당 완락재>, 2016, 종이에 디지털 피그먼트 프린트, 40˟57cm",
+        "최진주, <기지개>, 2003, 장지, 먹, 색, 70˟100cm",
+        "케세니아 네치텔로, <Sochi>, 2009, 유화, 70˟90cm",
+        "호망 지베흐(Romain Gilbert), <Venice series – untited 01>, 2009, C-print, 20˟30cm",
+        "우주연, <Thousand Hands>, 2007, 디지털 프린트, 81˟60.4cm",
+        "진 C. 마벨(Jean C. Marvel), <A Tree Grows in Washington>, 연도미상, 혼합재료, 19˟4˟39cm",
+        "조덕연, <회상(回想) - 그리움>, 2001, 종이, 아크릴, 68˟50cm",
+        "정용국, <Where is happy?>, 2007, 한지에 수묵, 83˟70cm"
+    ];
     const descriptions = [
-        "작가의 내면 세계를 표현한 추상 작품입니다.",
-        "자연의 아름다움을 담은 풍경화입니다.",
-        "도시의 일상을 관찰한 작품입니다.",
-        "감정의 흐름을 시각화한 표현주의 작품입니다.",
-        "시간과 공간의 개념을 탐구한 작품입니다.",
-        "색채의 조화를 통해 감성을 전달하는 작품입니다.",
-        "빛과 그림자의 대비를 활용한 작품입니다.",
-        "형태와 공간의 관계를 탐구한 작품입니다.",
-        "기억과 상상의 경계를 넘나드는 작품입니다.",
-        "일상 속에서 발견한 아름다움을 담은 작품입니다."
+        "김소연은 전통 색채와 자연, 근원에 대한 관심을 바탕으로, 수묵과 청색의 추상적 형상을 통해 기운생동(氣韻生動)을 탐구한다.",
+        "나탈리아 부텐노바는 러시아 모스크바 주말의 활기찬 아르바트 거리 풍경을 에칭 기법으로 담아냈다. 동판에 새겨진 빠르고 불규칙한 선이 인물과 공간을 유동적으로 변화시키며 선적 리듬과 생동감을 전한다.",
+        "노태범은 부적의 상징성과 무속적 이미지를 현대적으로 재해석한다. 〈현대인을 위한 시〉는 자연과 인간의 공생·상생을 바탕으로 한 무속적 세계관을 보여준다.",
+        "라리사 누리는 모스크바 건축가 조합과 스웨덴협회에서 대상을 수상한 작가로, 시공을 초월한 몽환적인 분위기를 표현한다.",
+        "라리사 코샤코바는 문학적 신화를 차용하지 않고, 자신의 내면과 삶의 경험이 연결된 나이브 아트(Naive Art)를 선보인다.",
+        "백진화는 자연을 관찰하며 생명이 자라나는 과정을 화면에 담는다. 〈연두〉는 진흙 속에서도 꽃을 피우는 강인함과 빗방울에도 흔들리지 않는 모습으로, 최소한의 형상으로 존재의 의연함을 보여준다.",
+        "솔로몬 이세케이예는 다양한 문화 간 공통점과 차이점을 탐구하며, 〈Iya Agba - Ⅱ〉은 플라스틱 판에 양각을 새겨 잉크를 묻혀 찍는 볼록판 인쇄 기법으로, 아프리카 모계 중심 사회를 표현한다.",
+        "스테판 홀트는 맑고 아름다운 하늘의 이미지 속에 항공기와 산업 활동의 흔적을 담아 환경오염의 현실을 드러낸다.",
+        "안나 보그다노바는 깨진 유리와 렌즈를 통해 세상을 왜곡된 형태로 보여주며 다채로운 풍경을 연출한다.",
+        "엘레나 수마코바의 〈아침식사〉는 일상의 식재료로 농가의 여유와 삶의 풍요, 그리고 삶의 순환을 드러낸다.",
+        "요크 힐버트 작가는 일러스트레이션 작업에 그치지 않고 글과 음악을 제작하여 장르를 넘나드는 새로운 형태의 예술을 만들어낸다. <RITTER ROST>는 1994년에 출판된 작가의 첫 번째 시리즈로, 다양한 형태로 출간, 공연되어 독일어권 고전 동화로 인정받았다.",
+        "이승찬은 가톨릭 입문을 계기로 동·서양의 철학과 조형성을 접목해 자유롭고 즉흥적인 표현을 탐구한다. 먹과 한지가 만나 자연스럽게 만들어진 형상을 활용하며, 어린아이 같은 천진함과 즐거움이 담는다.",
+        "이카와 세이료는 캔버스 대신 종이접기 같은 지지대를 활용해 회화의 경계를 확장하고, 원색과 단순한 형태로 경쾌한 감각과 동심을 표현한다.",
+        "이향은 전통 소재와 수묵담채를 바탕으로 시간과 자연, 수행의 의미를 담아내는 작가로, 절제된 색과 깊은 먹빛이 어우러진 작품 세계를 보여준다.",
+        "장용근은 공식적으로 존재하지 않았던 공간인 집창촌 자갈마당의 일상을 사진으로 기록한다. 오랜 시간 주목해 온 도시와 타자, 자본주의와 노동의 문제가 일상의 장면 속에 스며드는 순간을 포착한다.",
+        "조경희는 여성의 욕망과 무의식을 주제로, 구두·핸드백·스타킹 같은 일상적 사물을 해체하고 재구성한다. 이를 통해 소비와 욕망, 실제와 이미지 사이의 긴장 관계를 드러낸다.",
+        "차장섭은 전국에 산재한 고택을 찾아다니며 한국 고유의 아름다움을 사진에 담는다. '아름다운 사람, 아름다운 집'이라는 말처럼, 사람과 집이 결코 분리될 수 없는 존재임을 보여준다.",
+        "최진주는 먹과 물감을 반복해 부유하는 듯한 희미한 형상을 만들며, 자신의 심리와 내면을 드러낸다.",
+        "케세니아 네치텔로는 러시아 소치의 풍경을 푸른 색면과 간결한 선으로 표현한다. 중앙의 대리석 건물을 중심으로 한여름의 노을처럼 부드러운 명암과 조화를 이루는 풍경을 담았다.",
+        "호망 지베흐는 익숙한 도시풍경 속에서 상투적으로 복제된 오브제들이 우리의 일상과 시각을 잠식하고 있음을 드러낸다.",
+        "우주연은 다른 문화 속에서 겪는 이질적인 경험을 수집한다. <Thousand Hands>는 불교사원에서 신자들이 쌀을 봉양하며 타인을 돕고 덕을 쌓는 행위에서 착안하였다. 수많은 손은 나눔의 행위가 개인을 넘어 더 넓은 세계로 퍼져 나간다는 불교적 세계관을 상징한다.",
+        "진 C. 마벨은 미국 워싱턴에 거주하는 사람들의 관계, 또는 개인과 집단 사이에 일어나는 일을 나무로 형상화한다.",
+        "조덕연은 새를 통해 환경에 대한 관심과 자연 속에서 보낸 유년 시절의 경험을 표현하며, 야생에서 생존하려는 새의 노력을 현대인의 삶에 비유한다.",
+        "정용국은 한지와 수묵의 특성을 활용해 현대 도시의 어두운 면을 은유하고, 인간 신체를 풍경처럼 재해석하며 동시대 삶을 탐구한다."
     ];
     
     // 24점: 벽 중간에만 배치. 모서리·벽과 벽 만나는 곳(끝) 피해서 공중에 안 떠 있고 잘리지 않게.
@@ -1209,11 +1301,12 @@ function createGallery() {
         const picH = isPortrait ? pictureHeightPortrait : pictureHeightLandscape;
         const imageUrl = imageFiles[imgIndex];
         const info = createArtworkInfo(
-            artworkTitles[i % artworkTitles.length],
-            materials[i % materials.length],
-            sizes[i % sizes.length],
-            years[i % years.length],
-            descriptions[i % descriptions.length]
+            artworkTitles[imgIndex],
+            materials[imgIndex],
+            sizes[imgIndex],
+            years[imgIndex],
+            descriptions[imgIndex],
+            captions[imgIndex]
         );
         createPictureFrame(picW, picH, p.pos, p.rot, imageUrl, info, galleryGroup, i);
     }
