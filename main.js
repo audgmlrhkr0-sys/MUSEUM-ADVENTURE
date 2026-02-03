@@ -92,6 +92,13 @@ function getCanvas() {
     return _cachedCanvas;
 }
 
+function resetMovementKeys() {
+    moveForward = false;
+    moveBackward = false;
+    moveLeft = false;
+    moveRight = false;
+}
+
 function onPointerLockChange() {
     const canvas = getCanvas();
     if (!instructions) instructions = document.getElementById('instructions');
@@ -105,6 +112,7 @@ function onPointerLockChange() {
         startTimer();
         if (backgroundMusic && backgroundMusic.paused) backgroundMusic.play().catch(function() {});
     } else {
+        resetMovementKeys();
         if (instructions && !gameOver) instructions.classList.remove('hidden');
         document.body.classList.remove('locked');
         document.removeEventListener('mousemove', onMouseMove);
@@ -189,6 +197,7 @@ let selectedChoiceIndex = 0; // 현재 선택된 선택지 인덱스
 let isDialogOpen = false; // 대화창이 열려있는지 여부
 
 function openArtworkDialog() {
+    resetMovementKeys();
     const dialog = document.getElementById('artworkDialog');
     const nearestArtwork = findNearestArtwork();
     
@@ -586,9 +595,9 @@ function openExit() {
         transform: translateX(-50%);
         background: transparent;
         color: #fff8dc;
-        padding: 24px 48px;
-        border-radius: 10px;
-        font-size: 1.75em;
+        padding: 32px 58px;
+        border-radius: 14px;
+        font-size: 2.15em;
         font-weight: bold;
         z-index: 200;
         text-align: center;
@@ -669,6 +678,12 @@ function onMouseMove(event) {
 
 // 키보드 입력
 const onKeyDown = (event) => {
+    // 게임 오버/클리어 시에는 이동·작품 상호작용 등 무시 (다시하기만 가능)
+    if (gameOver) return;
+    // 키 반복 시 이동 플래그만 설정하지 않음 (keyup 누락 시 계속 이동하는 버그 방지)
+    if (event.repeat) {
+        if (event.code === 'KeyW' || event.code === 'ArrowUp' || event.code === 'KeyS' || event.code === 'ArrowDown' || event.code === 'KeyA' || event.code === 'ArrowLeft' || event.code === 'KeyD' || event.code === 'ArrowRight') return;
+    }
     // Pointer Lock이 활성화된 상태에서만 키 입력 처리
     const locked = document.pointerLockElement || document.mozPointerLockElement || document.webkitPointerLockElement;
     if (!locked) {
@@ -739,6 +754,7 @@ const onKeyDown = (event) => {
 };
 
 const onKeyUp = (event) => {
+    if (gameOver) return;
     // 대화창이 열려있으면 이동 키는 무시 (화살표·W·S는 선택용으로 사용)
     if (isDialogOpen && (event.code === 'ArrowUp' || event.code === 'ArrowDown' || event.code === 'KeyW' || event.code === 'KeyS')) {
         return;
@@ -766,6 +782,7 @@ const onKeyUp = (event) => {
 
 document.addEventListener('keydown', onKeyDown);
 document.addEventListener('keyup', onKeyUp);
+window.addEventListener('blur', resetMovementKeys);
 
 // 작품 정보 배열
 const artworks = [];
@@ -1018,6 +1035,11 @@ function createGallery() {
                     loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
                     loadedTexture.minFilter = THREE.LinearFilter;
                     loadedTexture.magFilter = THREE.LinearFilter;
+                    // 9.jpg: -90도 회전하여 세로 비율로 표시
+                    if (typeof slotIndex === 'number' && slotIndex === 8) {
+                        loadedTexture.rotation = -Math.PI / 2;
+                        loadedTexture.center.set(0.5, 0.5);
+                    }
                     if (picture && picture.material && picture.material.map !== loadedTexture) {
                         picture.material.map = loadedTexture;
                         picture.material.needsUpdate = true;
@@ -1026,14 +1048,16 @@ function createGallery() {
                 },
                 undefined,
                 function(error) {
-                    const fallbackList = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpeg', '6.jpg', '7.png', '8.jpg'];
+                    const fallbackList = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpeg', '6.jpg', '7.png', '8.jpg', '9.jpg', '10.jpg', '11.jpg', '12.jpg'];
                     let tried = 0;
                     function tryNext() {
                         if (tried >= fallbackList.length) {
-                            frameGroup.traverse(function(o) {
-                                if (o.geometry) o.geometry.dispose();
-                                if (o.material) { if (Array.isArray(o.material)) o.material.forEach(m => m.dispose()); else o.material.dispose(); }
-                            });
+                            // 모든 로드 실패 시에도 프레임은 씬에 추가 (회색 플레이스홀더, 별빛 아래 등 누락 방지)
+                            if (picture && picture.material) {
+                                picture.material.dispose();
+                                picture.material = new THREE.MeshStandardMaterial({ color: 0x555555, side: THREE.FrontSide, roughness: 0.9, metalness: 0 });
+                            }
+                            addToScene();
                             return;
                         }
                         const fallbackUrl = fallbackList[tried++];
@@ -1065,6 +1089,11 @@ function createGallery() {
             texture.wrapT = THREE.ClampToEdgeWrapping;
             texture.minFilter = THREE.LinearFilter;
             texture.magFilter = THREE.LinearFilter;
+            // 9.jpg (슬롯 8 또는 32): -90도 회전 (텍스처 로드 전에도 적용)
+            if (typeof slotIndex === 'number' && slotIndex % 24 === 8) {
+                texture.rotation = -Math.PI / 2;
+                texture.center.set(0.5, 0.5);
+            }
             
             pictureMaterial = new THREE.MeshStandardMaterial({ 
                 map: texture,
@@ -1140,7 +1169,7 @@ function createGallery() {
     
     // 24점: 벽 중간에만 배치. 모서리·벽과 벽 만나는 곳(끝) 피해서 공중에 안 떠 있고 잘리지 않게.
     const imageFiles = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpeg', '6.jpg', '7.png', '8.jpg', '9.jpg', '10.jpg', '11.jpg', '12.jpg', '13.jpg', '14.jpg', '15.jpg', '16.jpg', '17.jpg', '18.jpg', '19.jpg', '20.jpg', '21.jpg', '22.jpg', '23.jpg', '24.jpg'];
-    const portraitIndices = [4, 6]; // 5.jpeg, 7.png – 세로형
+    const portraitIndices = [2, 4, 6, 8, 20, 22, 23]; // 3.jpg, 5.jpeg, 7.png, 9.jpg(-90°), 21.jpg, 23.jpg, 24.jpg – 세로형
     const positions = [
         { pos: { x: -halfSize - pictureOffset, y: pictureY, z: -18 }, rot: Math.PI / 2 },
         { pos: { x: -halfSize - pictureOffset, y: pictureY, z: 0 }, rot: Math.PI / 2 },
@@ -1171,12 +1200,14 @@ function createGallery() {
     const pictureHeightLandscape = 5.5;
     const pictureSizePortrait = 5.5;
     const pictureHeightPortrait = 7.5;
-    for (let i = 0; i < 24; i++) {
+    const totalFrames = positions.length; // 33 (24 + 빈벽 9곳)
+    for (let i = 0; i < totalFrames; i++) {
         const p = positions[i];
-        const isPortrait = portraitIndices.includes(i);
+        const imgIndex = i % 24;
+        const isPortrait = portraitIndices.includes(imgIndex);
         const picW = isPortrait ? pictureSizePortrait : pictureSizeLandscape;
         const picH = isPortrait ? pictureHeightPortrait : pictureHeightLandscape;
-        const imageUrl = imageFiles[i];
+        const imageUrl = imageFiles[imgIndex];
         const info = createArtworkInfo(
             artworkTitles[i % artworkTitles.length],
             materials[i % materials.length],
@@ -1370,9 +1401,12 @@ function removeKeyFrameGlow(frameGroup) {
 }
 
 function assignKeysToArtworks() {
-    if (artworks.length < 5) return;
-    var shuffled = artworks.slice().sort(function() { return Math.random() - 0.5; });
-    for (var i = 0; i < 5; i++) {
+    // 씬에 실제로 있는 작품만 열쇠 대상 (이미지 로드 실패로 프레임이 없는 경우 제외)
+    var inScene = artworks.filter(function(a) { return a.frame && a.frame.parent; });
+    if (inScene.length < 5) return;
+    var shuffled = inScene.slice().sort(function() { return Math.random() - 0.5; });
+    var n = Math.min(5, shuffled.length);
+    for (var i = 0; i < n; i++) {
         shuffled[i].frame.userData.hasKey = true;
         keyArtworks.push(shuffled[i]);
         var o = createSparkleGroupForKey();
@@ -1383,18 +1417,30 @@ function assignKeysToArtworks() {
     }
 }
 
-// 작품 생성 후 열쇠 할당 (이미지 비동기 로드 후 artworks에 등록되므로 지연 호출, 1회만)
+// 작품 생성 후 열쇠 할당 (20개 이상 로드된 뒤 5개에 열쇠 배치, 지연으로 24점 로드 확률 증가)
 let keysAssigned = false;
 function tryAssignKeys() {
     if (keysAssigned) return;
-    if (artworks.length >= 5) {
+    var inScene = artworks.filter(function(a) { return a.frame && a.frame.parent; });
+    if (inScene.length >= 20) {
         keysAssigned = true;
         assignKeysToArtworks();
-    } else {
-        setTimeout(tryAssignKeys, 400);
+        return;
     }
+    if (inScene.length >= 5) {
+        // 20개 미만이어도 2.5초 후에는 5개 이상이면 할당 (열쇠 5개 보장)
+        setTimeout(function() {
+            if (keysAssigned) return;
+            var again = artworks.filter(function(a) { return a.frame && a.frame.parent; });
+            if (again.length >= 5) {
+                keysAssigned = true;
+                assignKeysToArtworks();
+            }
+        }, 2500);
+    }
+    setTimeout(tryAssignKeys, 500);
 }
-setTimeout(tryAssignKeys, 500);
+setTimeout(tryAssignKeys, 2000);
 
 // 출구 생성
 createExit();
@@ -1560,31 +1606,51 @@ function createMonster() {
 // 몬스터 배열
 const monsters = [];
 
-// 몬스터 초기화 (여러 마리 생성)
+// 경비원별 순찰 구역 (넓게 잡아 난이도 완화, 약간 겹침 허용)
+const monsterZones = [
+    { minX: -34, maxX: 34, minZ: -34, maxZ: -6 },  // 북쪽 구역 (넓게)
+    { minX: -34, maxX: 34, minZ: -14, maxZ: 14 },  // 중앙 구역 (넓게)
+    { minX: -34, maxX: 34, minZ: 8, maxZ: 33 }    // 남쪽 구역 (출구 앞 제외)
+];
+
+function randomPositionInZone(zone, radius) {
+    const r = radius || 0.5;
+    for (let tryCount = 0; tryCount < 30; tryCount++) {
+        const x = zone.minX + Math.random() * (zone.maxX - zone.minX);
+        const z = zone.minZ + Math.random() * (zone.maxZ - zone.minZ);
+        const pos = new THREE.Vector3(x, 0, z);
+        if (checkMonsterCollision(pos, r)) return pos;
+    }
+    return new THREE.Vector3(
+        (zone.minX + zone.maxX) * 0.5,
+        0,
+        (zone.minZ + zone.maxZ) * 0.5
+    );
+}
+
+// 몬스터 초기화 (구역별로 1마리씩, 자유롭게 배회)
 function initMonsters() {
-    const monsterCount = 3; // 몬스터 3마리
+    const monsterCount = 3;
     
     for (let i = 0; i < monsterCount; i++) {
         const monster = createMonster();
+        const zone = monsterZones[i % monsterZones.length];
         
-        // 랜덤 위치에 배치 (미술관 내부)
-        const angle = (Math.PI * 2 / monsterCount) * i + Math.random() * 0.5;
-        const radius = 12 + Math.random() * 12;
-        monster.position.set(
-            Math.cos(angle) * radius,
-            0,
-            Math.sin(angle) * radius
-        );
+        const startPos = randomPositionInZone(zone);
+        monster.position.copy(startPos);
         
-        // 몬스터 상태 저장 (난이도 소폭 하향)
         monster.userData = {
             state: 'wandering',
             targetPosition: new THREE.Vector3(),
             wanderTime: 0,
-            speed: 2.6 + Math.random() * 1.0,
-            detectionRange: 12.0,
-            attackRange: 1.6,
-            chaseMemory: 1.2
+            speed: 2.0 + Math.random() * 0.8,
+            detectionRange: 9.0,
+            attackRange: 1.8,
+            chaseMemory: 1.2,
+            zoneMinX: zone.minX,
+            zoneMaxX: zone.maxX,
+            zoneMinZ: zone.minZ,
+            zoneMaxZ: zone.maxZ
         };
         
         scene.add(monster);
@@ -2071,6 +2137,19 @@ function checkMonsterCollision(newPosition, radius) {
     return true; // 충돌 없음
 }
 
+// 구역 내 랜덤 목표 생성 (경비원별로 자기 구역만 사용)
+function randomTargetInZone(data) {
+    const zMin = data.zoneMinZ != null ? data.zoneMinZ : -34;
+    const zMax = data.zoneMaxZ != null ? data.zoneMaxZ : 34;
+    const xMin = data.zoneMinX != null ? data.zoneMinX : -34;
+    const xMax = data.zoneMaxX != null ? data.zoneMaxX : 34;
+    return new THREE.Vector3(
+        xMin + Math.random() * (xMax - xMin),
+        0,
+        zMin + Math.random() * (zMax - zMin)
+    );
+}
+
 // 경비원 AI 업데이트 함수
 function updateMonsters(delta) {
     const playerPos = camera.position;
@@ -2142,31 +2221,21 @@ function updateMonsters(delta) {
             }
             data.wanderTime += delta;
             
-            // 일정 시간마다 또는 목표에 도달했을 때 새로운 목표 위치 설정
+            // 일정 시간마다 또는 목표에 도달했을 때 새로운 목표 위치 설정 (자기 구역 안에서만)
             if (data.wanderTime > 0.8 || monsterPos.distanceTo(data.targetPosition) < 1.0) {
-                // 새로운 랜덤 목표 위치 (맵 전체를 돌아다니도록 절대 좌표로 생성)
                 let attempts = 0;
                 let validPosition = false;
-                let newTarget = new THREE.Vector3();
+                const zMin = data.zoneMinZ != null ? data.zoneMinZ : -34;
+                const zMax = data.zoneMaxZ != null ? data.zoneMaxZ : 34;
+                const xMin = data.zoneMinX != null ? data.zoneMinX : -34;
+                const xMax = data.zoneMaxX != null ? data.zoneMaxX : 34;
                 
-                // 맵 크기: -35 ~ 35 (floorSize 70, 외벽 안쪽)
-                const mapMin = -34;
-                const mapMax = 34;
-                
-                while (!validPosition && attempts < 20) {
-                    newTarget.set(
-                        mapMin + Math.random() * (mapMax - mapMin),
-                        0,
-                        mapMin + Math.random() * (mapMax - mapMin)
-                    );
-                    
-                    // 출구 구멍 영역 제외 (x: -1.5 ~ 1.5, z: 35 근처)
+                while (!validPosition && attempts < 25) {
+                    const newTarget = randomTargetInZone(data);
                     if (newTarget.z > 34 && newTarget.x >= -1.5 && newTarget.x <= 1.5) {
                         attempts++;
                         continue;
                     }
-                    
-                    // 목표 위치가 미술관 내부인지 확인
                     if (checkMonsterCollision(newTarget, data.radius || 0.5)) {
                         data.targetPosition.copy(newTarget);
                         validPosition = true;
@@ -2174,15 +2243,14 @@ function updateMonsters(delta) {
                     attempts++;
                 }
                 
-                // 유효한 위치를 찾지 못했으면 현재 위치 주변으로 작은 이동
                 if (!validPosition) {
                     const smallAngle = Math.random() * Math.PI * 2;
                     const smallDistance = 3 + Math.random() * 5;
-                    data.targetPosition.set(
-                        monsterPos.x + Math.cos(smallAngle) * smallDistance,
-                        0,
-                        monsterPos.z + Math.sin(smallAngle) * smallDistance
-                    );
+                    let tx = monsterPos.x + Math.cos(smallAngle) * smallDistance;
+                    let tz = monsterPos.z + Math.sin(smallAngle) * smallDistance;
+                    tx = Math.max(xMin, Math.min(xMax, tx));
+                    tz = Math.max(zMin, Math.min(zMax, tz));
+                    data.targetPosition.set(tx, 0, tz);
                 }
                 
                 data.wanderTime = 0;
@@ -2338,6 +2406,8 @@ function triggerGameOver(reason) {
     if (gameOver) return; // 이미 게임오버면 중복 실행 방지
     
     gameOver = true;
+    resetMovementKeys();
+    velocity.set(0, 0, 0);
     
     // 배경 음악 중지, 게임 오버 효과음 재생
     if (backgroundMusic) {
@@ -2349,13 +2419,18 @@ function triggerGameOver(reason) {
     // 타이머 중지
     stopTimer();
     
-    // 포인터 잠금 해제
+    // 포인터 잠금 해제 (플레이 불가, 다시하기만 가능)
     const exitPointerLock = document.exitPointerLock || 
                            document.mozExitPointerLock || 
                            document.webkitExitPointerLock;
     if (exitPointerLock) {
         exitPointerLock.call(document);
     }
+    
+    // 작품 대화창·프롬프트 숨김 (다시하기만 보이도록)
+    closeArtworkDialog();
+    const artworkPrompt = document.getElementById('artworkPrompt');
+    if (artworkPrompt) artworkPrompt.classList.add('hidden');
     
     // 게임오버 UI 표시
     const gameOverPanel = document.getElementById('gameOver');
@@ -2374,6 +2449,8 @@ function triggerGameClear() {
     if (gameOver) return; // 이미 게임오버면 클리어 불가
     
     gameOver = true;
+    resetMovementKeys();
+    velocity.set(0, 0, 0);
     
     // 배경 음악 중지
     if (backgroundMusic) {
@@ -2389,13 +2466,18 @@ function triggerGameClear() {
     // 타이머 중지
     stopTimer();
     
-    // 포인터 잠금 해제
+    // 포인터 잠금 해제 (플레이 불가, 다시하기만 가능)
     const exitPointerLock = document.exitPointerLock || 
                            document.mozExitPointerLock || 
                            document.webkitExitPointerLock;
     if (exitPointerLock) {
         exitPointerLock.call(document);
     }
+    
+    // 작품 대화창·프롬프트 숨김 (다시하기만 보이도록)
+    closeArtworkDialog();
+    const artworkPrompt = document.getElementById('artworkPrompt');
+    if (artworkPrompt) artworkPrompt.classList.add('hidden');
     
     // 게임 클리어 UI 표시
     const gameClearPanel = document.getElementById('gameClear');
@@ -2548,26 +2630,17 @@ function restartGame() {
         }
     }
     
-    // 8. 몬스터 위치 리셋
+    // 8. 몬스터 위치 리셋 (각자 구역 안에서만 재배치)
     for (let i = 0; i < monsters.length; i++) {
         const monster = monsters[i];
-        if (monster) {
-            const angle = (Math.PI * 2 / monsters.length) * i + Math.random() * 0.5;
-            const radius = 15 + Math.random() * 10;
-            monster.position.set(
-                Math.cos(angle) * radius,
-                0,
-                Math.sin(angle) * radius
-            );
-            if (monster.userData) {
-                monster.userData.state = 'wandering';
-                monster.userData.wanderTime = 0;
-                monster.userData.targetPosition.set(
-                    monster.position.x + (Math.random() - 0.5) * 5,
-                    0,
-                    monster.position.z + (Math.random() - 0.5) * 5
-                );
-            }
+        if (monster && monster.userData) {
+            const zone = monsterZones[i % monsterZones.length];
+            const startPos = randomPositionInZone(zone);
+            monster.position.copy(startPos);
+            monster.userData.state = 'wandering';
+            monster.userData.wanderTime = 0;
+            const next = randomPositionInZone(zone);
+            monster.userData.targetPosition.copy(next);
         }
     }
     
@@ -2617,6 +2690,8 @@ document.addEventListener('keydown', (event) => {
 
 // 게임 시작 함수
 function startGame(event) {
+    // 게임 오버/클리어 시에는 다시하기만 가능 (캔버스 클릭으로 재시작 불가)
+    if (gameOver) return;
     if (event) {
         event.preventDefault();
         event.stopPropagation();
