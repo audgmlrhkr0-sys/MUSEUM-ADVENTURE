@@ -1755,8 +1755,8 @@ const monsters = [];
 
 // 경비원별 순찰 구역 (넓게 잡아 난이도 완화, 약간 겹침 허용)
 const monsterZones = [
-    { minX: -34, maxX: 34, minZ: -34, maxZ: -6 },  // 북쪽 구역 (넓게)
-    { minX: -34, maxX: 34, minZ: -14, maxZ: 14 },  // 중앙 구역 (넓게)
+    { minX: -19, maxX: 19, minZ: -34, maxZ: -6 },  // 북쪽 구역 (전시 쪽 복도만, 뒷벽 제외)
+    { minX: -19, maxX: 19, minZ: -14, maxZ: 14 },  // 중앙 구역 (전시 쪽 복도만)
     { minX: -34, maxX: 34, minZ: 8, maxZ: 33 }    // 남쪽 구역 (출구 앞 제외)
 ];
 
@@ -1775,14 +1775,16 @@ function randomPositionInZone(zone, radius) {
         const pos = new THREE.Vector3(x, 0, z);
         if (checkMonsterCollision(pos, r)) return pos;
     }
-    // 폴백: 리스폰 구역 밖인 중앙으로
+    // 폴백: 플레이어가 다닐 수 있는 통로 중심 등으로
     let fx = (zone.minX + zone.maxX) * 0.5;
     let fz = (zone.minZ + zone.maxZ) * 0.5;
     if (isInRespawnSafeZone(fx, fz, r)) {
-        fx = Math.max(zone.minX, RESPAWN_SAFE_MAX_X + 2);
-        fz = Math.max(zone.minZ, RESPAWN_SAFE_MAX_Z + 2);
+        fx = 0;
+        fz = Math.max(-10, Math.min(10, fz));
     }
-    return new THREE.Vector3(fx, 0, fz);
+    const fallback = new THREE.Vector3(fx, 0, fz);
+    if (checkMonsterCollision(fallback, r)) return fallback;
+    return new THREE.Vector3(0, 0, 0); // 통로 중심은 항상 이동 가능
 }
 
 // 몬스터 초기화 (구역별로 1마리씩, 자유롭게 배회)
@@ -2208,113 +2210,32 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// 경비원 벽 충돌 체크 함수
+// 경비원 벽 충돌 체크 함수 — 플레이어와 동일 통과 조건 + 작품 없는 뒷벽 복도 진입 금지 (갇힘 방지)
 function checkMonsterCollision(newPosition, radius) {
-    const wallThickness = 0.8; // 충돌 감지 여유 공간 더 증가
-    const outerWall = 35; // floorSize 70
-
-    // 리스폰 구역 및 그 앞: 경비원 진입 불가 (진입 시 충돌로 처리)
+    // 리스폰 구역만 경비원 진입 불가
     if (newPosition.x >= RESPAWN_SAFE_MIN_X - radius && newPosition.x <= RESPAWN_SAFE_MAX_X + radius &&
         newPosition.z >= RESPAWN_SAFE_MIN_Z - radius && newPosition.z <= RESPAWN_SAFE_MAX_Z + radius) {
         return false;
     }
-    
-    // 외벽 충돌 체크 (더 엄격하게 - >, < 사용)
-    // 동쪽 외벽 (x = 35)
-    if (newPosition.x > outerWall - radius - wallThickness) {
-        return false;
-    }
-    // 서쪽 외벽 (x = -25)
-    if (newPosition.x < -outerWall + radius + wallThickness) {
-        return false;
-    }
-    // 북쪽 외벽 (z = -25)
-    if (newPosition.z < -outerWall + radius + wallThickness) {
-        return false;
-    }
-    // 남쪽 외벽 (z = 25) - 출구 구멍 체크
-    if (newPosition.z > outerWall - radius - wallThickness) {
-        // 출구 구멍 체크 (x = -1.5 ~ 1.5)
-        if (newPosition.x <= -1.5 - radius - wallThickness || newPosition.x >= 1.5 + radius + wallThickness) {
-            return false; // 출구 구멍이 아닌 곳은 충돌
+    // 작품이 걸려 있지 않은 뒷벽 복도(전시 벽 뒤 좁은 공간) — 경비 진입 금지, 여기 들어가면 갇힘
+    const wallX = 20;
+    const backZLo = -29, backZHi = -1, backZLo2 = 1, backZHi2 = 29;
+    const margin = radius + 0.2;
+    if (newPosition.x < -wallX + margin && newPosition.x > -35 + margin) {
+        if ((newPosition.z >= backZLo - margin && newPosition.z <= backZHi + margin) ||
+            (newPosition.z >= backZLo2 - margin && newPosition.z <= backZHi2 + margin)) {
+            return false; // 좌측 전시 벽 뒷복도
         }
     }
-    
-    // 미니 방 벽 충돌 체크
-    const roomCenterX = -32;
-    const roomCenterZ = -32;
-    const roomSize = 6;
-    const halfRoom = roomSize / 2;
-    
-    // 미니 방 내부인지 확인
-    const isInsideRoom = newPosition.x > roomCenterX - halfRoom + radius + wallThickness &&
-                         newPosition.x < roomCenterX + halfRoom - radius - wallThickness &&
-                         newPosition.z > roomCenterZ - halfRoom + radius + wallThickness &&
-                         newPosition.z < roomCenterZ + halfRoom - radius - wallThickness;
-    
-    if (isInsideRoom) {
-        return true; // 미니 방 내부는 통과 가능
-    }
-    
-    // 미니 방 벽 충돌 체크 (더 엄격하게)
-    // 서쪽 벽 (x = -25)
-    if (newPosition.x > roomCenterX - halfRoom - radius - wallThickness &&
-        newPosition.x < roomCenterX - halfRoom + radius + wallThickness) {
-        if (newPosition.z > roomCenterZ - halfRoom - radius - wallThickness &&
-            newPosition.z < roomCenterZ + halfRoom + radius + wallThickness) {
-            return false;
+    if (newPosition.x > wallX - margin && newPosition.x < 35 - margin) {
+        if ((newPosition.z >= backZLo - margin && newPosition.z <= backZHi + margin) ||
+            (newPosition.z >= backZLo2 - margin && newPosition.z <= backZHi2 + margin)) {
+            return false; // 우측 전시 벽 뒷복도
         }
     }
-    // 동쪽 벽 (x = -19)
-    if (newPosition.x > roomCenterX + halfRoom - radius - wallThickness &&
-        newPosition.x < roomCenterX + halfRoom + radius + wallThickness) {
-        if (newPosition.z > roomCenterZ - halfRoom - radius - wallThickness &&
-            newPosition.z < roomCenterZ + halfRoom + radius + wallThickness) {
-            return false;
-        }
-    }
-    // 북쪽 벽 (z = -25)
-    if (newPosition.z > roomCenterZ - halfRoom - radius - wallThickness &&
-        newPosition.z < roomCenterZ - halfRoom + radius + wallThickness) {
-        if (newPosition.x > roomCenterX - halfRoom - radius - wallThickness &&
-            newPosition.x < roomCenterX + halfRoom + radius + wallThickness) {
-            return false;
-        }
-    }
-    // 남쪽 벽 (z = -19) - 문이 있는 벽
-    if (newPosition.z > roomCenterZ + halfRoom - radius - wallThickness &&
-        newPosition.z < roomCenterZ + halfRoom + radius + wallThickness) {
-        // 문 구멍 체크 (x = -23 ~ -21)
-        if (newPosition.x <= roomCenterX - 1.5 - radius - wallThickness ||
-            newPosition.x >= roomCenterX + 1.5 + radius + wallThickness) {
-            if (newPosition.x > roomCenterX - halfRoom - radius - wallThickness &&
-                newPosition.x < roomCenterX + halfRoom + radius + wallThickness) {
-                return false; // 문이 아닌 부분은 충돌
-            }
-        }
-    }
-    
-    // 좌측 전시 공간 벽들 (x = -20)
-    if (newPosition.x > -20 - radius - wallThickness && newPosition.x < -20 + radius + wallThickness) {
-        if ((newPosition.z > -29 - radius - wallThickness && newPosition.z < -1 + radius + wallThickness) ||
-            (newPosition.z > 1 - radius - wallThickness && newPosition.z < 29 + radius + wallThickness)) return false;
-    }
-    // 우측 전시 공간 벽들 (x = 20)
-    if (newPosition.x > 20 - radius - wallThickness && newPosition.x < 20 + radius + wallThickness) {
-        if ((newPosition.z > -29 - radius - wallThickness && newPosition.z < -1 + radius + wallThickness) ||
-            (newPosition.z > 1 - radius - wallThickness && newPosition.z < 29 + radius + wallThickness)) return false;
-    }
-    
-    // 방 3개 구분 내벽 (z = -12, z = 12, 통로 x = -8~8)
-    const roomWallGap = 8;
-    if (Math.abs(newPosition.z - (-12)) < radius + wallThickness) {
-        if (newPosition.x < -roomWallGap - radius - wallThickness || newPosition.x > roomWallGap + radius + wallThickness) return false;
-    }
-    if (Math.abs(newPosition.z - 12) < radius + wallThickness) {
-        if (newPosition.x < -roomWallGap - radius - wallThickness || newPosition.x > roomWallGap + radius + wallThickness) return false;
-    }
-
-    return true; // 충돌 없음
+    // 플레이어가 설 수 있는 곳이면 경비원도 이동 가능 (미니 방·통로·전시 쪽 복도만)
+    const playerPos = { x: newPosition.x, y: 1.6, z: newPosition.z };
+    return checkCollision(playerPos);
 }
 
 // 구역 내 랜덤 목표 생성 (경비원별로 자기 구역만 사용)
@@ -2430,7 +2351,11 @@ function updateMonsters(delta) {
                     let tz = monsterPos.z + Math.sin(smallAngle) * smallDistance;
                     tx = Math.max(xMin, Math.min(xMax, tx));
                     tz = Math.max(zMin, Math.min(zMax, tz));
-                    data.targetPosition.set(tx, 0, tz);
+                    _testPos.set(tx, 0, tz);
+                    if (checkMonsterCollision(_testPos, data.radius || 0.5)) {
+                        data.targetPosition.set(tx, 0, tz);
+                    }
+                    // 이동 불가 위치면 기존 target 유지 (다음 프레임에서 재시도)
                 }
                 
                 data.wanderTime = 0;
