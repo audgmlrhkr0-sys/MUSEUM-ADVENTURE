@@ -796,8 +796,8 @@ const onKeyDown = (event) => {
                 openArtworkDialog();
             }
             break;
-        case 'KeyQ':
-            // Q 키로 출구 열기
+        case 'Enter':
+            // Enter 키로 출구 열기
             event.preventDefault();
             event.stopPropagation();
             if (exitDoor && exitDoor.userData.isLocked) {
