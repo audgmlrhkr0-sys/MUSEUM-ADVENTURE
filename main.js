@@ -111,6 +111,12 @@ function onPointerLockChange() {
         updateInventory();
         startTimer();
         if (backgroundMusic && backgroundMusic.paused) backgroundMusic.play().catch(function() {});
+        if (!storyRespawnShown) {
+            storyRespawnShown = true;
+            setTimeout(function() {
+                showStoryDialogue('젠장, 문이 잠겼어... 어떻게든 나갈 방법을 찾아야 해.', 3000);
+            }, 900);
+        }
     } else {
         resetMovementKeys();
         if (instructions && !gameOver) instructions.classList.remove('hidden');
@@ -445,6 +451,14 @@ function updateInventory() {
         if (keys.length >= 5 && exitDoor && exitDoor.userData.isLocked) {
             openExit();
         }
+        if (keys.length >= 1 && !storyFirstKeyShown) {
+            storyFirstKeyShown = true;
+            showStoryDialogue('열쇠다! 이제 몇 개 남았지? 아직 더 찾아야 해.', 5000);
+        }
+        if (keys.length >= 3 && !storyThirdKeyShown) {
+            storyThirdKeyShown = true;
+            showStoryDialogue('발소리가 가까워.... 도망가, 빨리!', 3000);
+        }
     }
 }
 
@@ -619,6 +633,10 @@ function openExit() {
     }
     
     if (doorSound) doorSound.play().catch(function() {});
+    if (!storyExitShown) {
+        storyExitShown = true;
+        showStoryDialogue('문이 열렸어...! 이제 경비원 몰래 출구로 탈출하자.', 3000);
+    }
     // 출구 열림 알림
     const exitNotification = document.createElement('div');
     exitNotification.id = 'exitNotification';
@@ -1176,8 +1194,8 @@ function createGallery() {
     const artworkTitles = [
         "김소연, <勢>", "나탈리아 부텐노바, <Moscow, Arbet, Sunday>", "노태범, <現代人을 위한 符>", "라리사 누리(Larissa Noury), <chapel: light of the paddle>",
         "라리사 코샤코바(Larisa Kosyakova), <The square in a small town>", "백진화, <연두>", "솔로몬 이세케이예(Solomon Isekeije), <Iya Agba - Ⅱ>", "스테판 홀트(Steffen Rault), <Global-climate-are-you-cirrus-009>",
-        "안나 보그다노바(Anna Bogdanova), <Optical glass>", "엘레나 수마코바(Elena Shumakova), <아침식사>", "요크 힐버트(Joerg Hilbert), <RITTER ROST: The iron castle>", "이승찬, <무제>",
-        "이카와 세이료, <Peinture No.7>", "이향, <시간위에>", "장용근, <보이지 않는 노동 #3>", "조경희, <Shadow>",
+        "안나 보그다노바(Anna Bogdanova), <Optical glass>", "이카와 세이료, <Peinture No.7>", "요크 힐버트(Joerg Hilbert), <RITTER ROST: The iron castle>", "이승찬, <무제>",
+        "엘레나 수마코바(Elena Shumakova), <아침식사>", "이향, <시간위에>", "장용근, <보이지 않는 노동 #3>", "조경희, <Shadow>",
         "차장섭, <도(道)와 이(理)를 즐기고 완성하다 – 안동 도산서당 완락재>", "최진주, <기지개>", "케세니아 네치텔로, <Sochi>", "호망 지베흐(Romain Gilbert), <Venice series – untited 01>",
         "우주연, <Thousand Hands>", "진 C. 마벨(Jean C. Marvel), <A Tree Grows in Washington>", "조덕연, <회상(回想) - 그리움>", "정용국, <Where is happy?>"
     ];
@@ -1192,8 +1210,8 @@ function createGallery() {
     const sizes = [
         "38˟47cm", "24.5˟31.5cm", "170˟130cm", "28.5˟28.5cm",
         "90˟80cm", "60.5˟72cm", "(Plastagraphy Relief)", "120˟173cm",
-        "70˟50cm", "56˟71cm", "34˟60cm", "65.5˟69.5cm",
-        "34.5˟40.5cm", "59˟72cm", "100˟150cm", "40˟40cm",
+        "70˟50cm", "34.5˟40.5cm", "34˟60cm", "65.5˟69.5cm",
+        "56˟71cm", "59˟72cm", "100˟150cm", "40˟40cm",
         "40˟57cm", "70˟100cm", "70˟90cm", "20˟30cm",
         "81˟60.4cm", "19˟4˟39cm", "68˟50cm", "83˟70cm"
     ];
@@ -1216,10 +1234,10 @@ function createGallery() {
         "솔로몬 이세케이예(Solomon Isekeije), <Iya Agba - Ⅱ>, 2014, Plastagraphy Relief",
         "스테판 홀트(Steffen Rault), <Global-climate-are-you-cirrus-009>, 2011, C-print, 120˟173cm",
         "안나 보그다노바(Anna Bogdanova), <Optical glass>, 2009, 종이, 파스텔, 70˟50cm",
-        "엘레나 수마코바(Elena Shumakova), <아침식사>, 연도미상, 유화, 56˟71cm",
+        "이카와 세이료, <Peinture No.7>, 연도미상, 종이, 아크릴, 종이접기, 34.5˟40.5cm",
         "요크 힐버트(Joerg Hilbert), <RITTER ROST: The iron castle>, 2011, 디지털 프린트, 34˟60cm",
         "이승찬, <무제>, 1993, 종이에 채색, 65.5˟69.5cm",
-        "이카와 세이료, <Peinture No.7>, 연도미상, 종이, 아크릴, 종이접기, 34.5˟40.5cm",
+        "엘레나 수마코바(Elena Shumakova), <아침식사>, 연도미상, 유화, 56˟71cm",
         "이향, <시간위에>, 2005, 종이에 채색, 59˟72cm",
         "장용근, <보이지 않는 노동 #3>, 2016, 피그먼트 프린트, 100˟150cm",
         "조경희, <Shadow>, 2007, 거울, 스타킹, 40˟40cm",
@@ -1242,10 +1260,10 @@ function createGallery() {
         "솔로몬 이세케이예는 다양한 문화 간 공통점과 차이점을 탐구하며, 〈Iya Agba - Ⅱ〉은 플라스틱 판에 양각을 새겨 잉크를 묻혀 찍는 볼록판 인쇄 기법으로, 아프리카 모계 중심 사회를 표현한다.",
         "스테판 홀트는 맑고 아름다운 하늘의 이미지 속에 항공기와 산업 활동의 흔적을 담아 환경오염의 현실을 드러낸다.",
         "안나 보그다노바는 깨진 유리와 렌즈를 통해 세상을 왜곡된 형태로 보여주며 다채로운 풍경을 연출한다.",
-        "엘레나 수마코바의 〈아침식사〉는 일상의 식재료로 농가의 여유와 삶의 풍요, 그리고 삶의 순환을 드러낸다.",
+        "이카와 세이료는 캔버스 대신 종이접기 같은 지지대를 활용해 회화의 경계를 확장하고, 원색과 단순한 형태로 경쾌한 감각과 동심을 표현한다.",
         "요크 힐버트 작가는 일러스트레이션 작업에 그치지 않고 글과 음악을 제작하여 장르를 넘나드는 새로운 형태의 예술을 만들어낸다. <RITTER ROST>는 1994년에 출판된 작가의 첫 번째 시리즈로, 다양한 형태로 출간, 공연되어 독일어권 고전 동화로 인정받았다.",
         "이승찬은 가톨릭 입문을 계기로 동·서양의 철학과 조형성을 접목해 자유롭고 즉흥적인 표현을 탐구한다. 먹과 한지가 만나 자연스럽게 만들어진 형상을 활용하며, 어린아이 같은 천진함과 즐거움이 담는다.",
-        "이카와 세이료는 캔버스 대신 종이접기 같은 지지대를 활용해 회화의 경계를 확장하고, 원색과 단순한 형태로 경쾌한 감각과 동심을 표현한다.",
+        "엘레나 수마코바의 〈아침식사〉는 일상의 식재료로 농가의 여유와 삶의 풍요, 그리고 삶의 순환을 드러낸다.",
         "이향은 전통 소재와 수묵담채를 바탕으로 시간과 자연, 수행의 의미를 담아내는 작가로, 절제된 색과 깊은 먹빛이 어우러진 작품 세계를 보여준다.",
         "장용근은 공식적으로 존재하지 않았던 공간인 집창촌 자갈마당의 일상을 사진으로 기록한다. 오랜 시간 주목해 온 도시와 타자, 자본주의와 노동의 문제가 일상의 장면 속에 스며드는 순간을 포착한다.",
         "조경희는 여성의 욕망과 무의식을 주제로, 구두·핸드백·스타킹 같은 일상적 사물을 해체하고 재구성한다. 이를 통해 소비와 욕망, 실제와 이미지 사이의 긴장 관계를 드러낸다.",
@@ -1261,10 +1279,10 @@ function createGallery() {
     
     // 24점: 벽 중간에만 배치. 모서리·벽과 벽 만나는 곳(끝) 피해서 공중에 안 떠 있고 잘리지 않게.
     const imageFiles = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpeg', '6.jpg', '7.png', '8.jpg', '9.jpg', '10.jpg', '11.jpg', '12.jpg', '13.jpg', '14.jpg', '15.jpg', '16.jpg', '17.jpg', '18.jpg', '19.jpg', '20.jpg', '21.jpg', '22.jpg', '23.jpg', '24.jpg'];
-    const portraitIndices = [2, 4, 6, 8, 20, 22, 23]; // 3.jpg, 5.jpeg, 7.png, 9.jpg(-90°), 21.jpg, 23.jpg, 24.jpg – 세로형
+    const portraitIndices = [2, 4, 6, 8, 20, 22, 23]; // 3.jpg, 5.jpeg, 7.png(솔로몬), 9.jpg(-90°), 21.jpg, 23.jpg, 24.jpg – 세로형
     // 1·10·12·20 다른 곳으로, 17은 보이는 면으로. 통로에서 보이는 벽만 사용.
     const positions = [
-        { pos: { x: halfSize - pictureOffset, y: pictureY, z: 0 }, rot: Math.PI / 2 },
+        { pos: { x: -18, y: pictureY, z: -halfSize + pictureOffset }, rot: 0 },
         { pos: { x: 14, y: pictureY, z: -halfSize + pictureOffset }, rot: 0 },
         { pos: { x: -halfSize - pictureOffset, y: pictureY, z: 25 }, rot: Math.PI / 2 },
         { pos: { x: halfSize + pictureOffset, y: pictureY, z: -25 }, rot: -Math.PI / 2 },
@@ -1284,7 +1302,7 @@ function createGallery() {
         { pos: { x: -14, y: pictureY, z: -12 + pictureOffset }, rot: 0 },
         { pos: { x: 14, y: pictureY, z: -12 + pictureOffset }, rot: 0 },
         { pos: { x: -24, y: pictureY, z: halfSize - pictureOffset }, rot: Math.PI },
-        { pos: { x: halfSize - pictureOffset, y: pictureY, z: -10 }, rot: Math.PI / 2 },
+        { pos: { x: 20 + pictureOffset, y: pictureY, z: 0 }, rot: -Math.PI / 2 },
         { pos: { x: -14, y: pictureY, z: 12 - pictureOffset }, rot: Math.PI },
         { pos: { x: 14, y: pictureY, z: 12 - pictureOffset }, rot: Math.PI },
         { pos: { x: 28, y: pictureY, z: halfSize + pictureOffset }, rot: Math.PI }
@@ -1294,7 +1312,7 @@ function createGallery() {
     const pictureSizePortrait = 5.5;
     const pictureHeightPortrait = 7.5;
     // 비율 유지, 작품별 크기 다양화 (0.8 ~ 1.2)
-    const sizeScale = [1.0, 0.9, 1.1, 0.85, 1.15, 0.95, 1.05, 1.0, 0.9, 1.1, 0.88, 1.12, 0.92, 1.08, 1.0, 0.95, 1.05, 0.9, 1.1, 0.85, 1.15, 0.98, 1.02, 0.92];
+    const sizeScale = [1.0, 0.9, 1.1, 0.85, 1.15, 0.95, 1.05, 1.0, 0.9, 1.1, 0.88, 1.12, 0.92, 1.08, 1.0, 0.95, 1.05, 0.9, 1.1, 0.85, 0.82, 0.98, 1.02, 0.92];
     const totalFrames = positions.length; // 33 (24 + 빈벽 9곳)
     for (let i = 0; i < totalFrames; i++) {
         const p = positions[i];
@@ -1302,6 +1320,7 @@ function createGallery() {
         const isPortrait = portraitIndices.includes(imgIndex);
         let picW = isPortrait ? pictureSizePortrait : pictureSizeLandscape;
         let picH = isPortrait ? pictureHeightPortrait : pictureHeightLandscape;
+        if (imgIndex === 6) picW = 4.2; // 솔로몬(7.png) 가로 비율 줄임
         const scale = sizeScale[imgIndex] ?? 1;
         picW *= scale;
         picH *= scale;
@@ -1430,6 +1449,35 @@ const keyArtworks = [];
 // 열쇠 인벤토리
 const keys = [];
 let keyNotificationTimeout = null;
+
+// 스토리 대사 (한 번만 표시할 플래그)
+let storyRespawnShown = false;
+let storyLeftRespawnShown = false;
+let storyFirstKeyShown = false;
+let storyThirdKeyShown = false;
+let storyExitShown = false;
+let storyDialogueTimeout = null;
+const RESPAWN_X = -32;
+const RESPAWN_Z = -32;
+const RESPAWN_AREA_RADIUS = 5;
+// 리스폰 구역 및 그 앞 (경비원 진입 금지) – 넓게 잡아 근처 진입 방지
+const RESPAWN_SAFE_MIN_X = -36;
+const RESPAWN_SAFE_MAX_X = -26;
+const RESPAWN_SAFE_MIN_Z = -36;
+const RESPAWN_SAFE_MAX_Z = -16;
+
+function showStoryDialogue(text, durationMs) {
+    const el = document.getElementById('storyDialogue');
+    const textEl = document.getElementById('storyDialogueText');
+    if (!el || !textEl) return;
+    if (storyDialogueTimeout) clearTimeout(storyDialogueTimeout);
+    textEl.textContent = text;
+    el.classList.remove('hidden');
+    storyDialogueTimeout = setTimeout(function() {
+        el.classList.add('hidden');
+        storyDialogueTimeout = null;
+    }, durationMs || 3000);
+}
 
 var _sharedStarTexture = null;
 function getStarTexture() {
@@ -1712,19 +1760,29 @@ const monsterZones = [
     { minX: -34, maxX: 34, minZ: 8, maxZ: 33 }    // 남쪽 구역 (출구 앞 제외)
 ];
 
+function isInRespawnSafeZone(x, z, r) {
+    const margin = (r || 0.5) + 0.5;
+    return x >= RESPAWN_SAFE_MIN_X - margin && x <= RESPAWN_SAFE_MAX_X + margin &&
+           z >= RESPAWN_SAFE_MIN_Z - margin && z <= RESPAWN_SAFE_MAX_Z + margin;
+}
+
 function randomPositionInZone(zone, radius) {
     const r = radius || 0.5;
     for (let tryCount = 0; tryCount < 30; tryCount++) {
         const x = zone.minX + Math.random() * (zone.maxX - zone.minX);
         const z = zone.minZ + Math.random() * (zone.maxZ - zone.minZ);
+        if (isInRespawnSafeZone(x, z, r)) continue; // 리스폰 구역 및 앞 제외
         const pos = new THREE.Vector3(x, 0, z);
         if (checkMonsterCollision(pos, r)) return pos;
     }
-    return new THREE.Vector3(
-        (zone.minX + zone.maxX) * 0.5,
-        0,
-        (zone.minZ + zone.maxZ) * 0.5
-    );
+    // 폴백: 리스폰 구역 밖인 중앙으로
+    let fx = (zone.minX + zone.maxX) * 0.5;
+    let fz = (zone.minZ + zone.maxZ) * 0.5;
+    if (isInRespawnSafeZone(fx, fz, r)) {
+        fx = Math.max(zone.minX, RESPAWN_SAFE_MAX_X + 2);
+        fz = Math.max(zone.minZ, RESPAWN_SAFE_MAX_Z + 2);
+    }
+    return new THREE.Vector3(fx, 0, fz);
 }
 
 // 몬스터 초기화 (구역별로 1마리씩, 자유롭게 배회)
@@ -2127,6 +2185,23 @@ function animate() {
     // 몬스터 AI 업데이트
     if (!gameOver) {
         updateMonsters(delta);
+        // 경비원을 최초로 봤을 때 스토리 대사 (게임 시작 대사 이후에만)
+        if (!storyLeftRespawnShown && storyRespawnShown && _cameraDir) {
+            for (let i = 0; i < monsters.length; i++) {
+                const monster = monsters[i];
+                if (!monster || !monster.userData) continue;
+                _monsterDir.subVectors(monster.position, camera.position).setY(0);
+                const dist = _monsterDir.length();
+                if (dist > 0.5 && dist < 18) {
+                    _monsterDir.normalize();
+                    if (_cameraDir.dot(_monsterDir) > 0.3) {
+                        storyLeftRespawnShown = true;
+                        showStoryDialogue('쉿! 경비원이 있어. 들키지 않도록 조심하자.', 5000);
+                        break;
+                    }
+                }
+            }
+        }
     }
     
     prevTime = time;
@@ -2137,6 +2212,12 @@ function animate() {
 function checkMonsterCollision(newPosition, radius) {
     const wallThickness = 0.8; // 충돌 감지 여유 공간 더 증가
     const outerWall = 35; // floorSize 70
+
+    // 리스폰 구역 및 그 앞: 경비원 진입 불가 (진입 시 충돌로 처리)
+    if (newPosition.x >= RESPAWN_SAFE_MIN_X - radius && newPosition.x <= RESPAWN_SAFE_MAX_X + radius &&
+        newPosition.z >= RESPAWN_SAFE_MIN_Z - radius && newPosition.z <= RESPAWN_SAFE_MAX_Z + radius) {
+        return false;
+    }
     
     // 외벽 충돌 체크 (더 엄격하게 - >, < 사용)
     // 동쪽 외벽 (x = 35)
@@ -2631,6 +2712,13 @@ function restartGame() {
     // 1. 열쇠 배열 초기화
     keys.length = 0;
     _prevKeyCount = 0;
+
+    // 스토리 대사 플래그 초기화 (다시하기 시 대사 재생)
+    storyRespawnShown = false;
+    storyLeftRespawnShown = false;
+    storyFirstKeyShown = false;
+    storyThirdKeyShown = false;
+    storyExitShown = false;
     
     // 2. 작품의 열쇠 상태 복원 (모든 작품에서 열쇠 제거 후 keyArtworks에 있는 작품만 복원)
     for (let artwork of artworks) {
