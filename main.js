@@ -1262,43 +1262,49 @@ function createGallery() {
     // 24점: 벽 중간에만 배치. 모서리·벽과 벽 만나는 곳(끝) 피해서 공중에 안 떠 있고 잘리지 않게.
     const imageFiles = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpeg', '6.jpg', '7.png', '8.jpg', '9.jpg', '10.jpg', '11.jpg', '12.jpg', '13.jpg', '14.jpg', '15.jpg', '16.jpg', '17.jpg', '18.jpg', '19.jpg', '20.jpg', '21.jpg', '22.jpg', '23.jpg', '24.jpg'];
     const portraitIndices = [2, 4, 6, 8, 20, 22, 23]; // 3.jpg, 5.jpeg, 7.png, 9.jpg(-90°), 21.jpg, 23.jpg, 24.jpg – 세로형
+    // 1·10·12·20 다른 곳으로, 17은 보이는 면으로. 통로에서 보이는 벽만 사용.
     const positions = [
-        { pos: { x: -halfSize - pictureOffset, y: pictureY, z: -18 }, rot: Math.PI / 2 },
-        { pos: { x: -halfSize - pictureOffset, y: pictureY, z: 0 }, rot: Math.PI / 2 },
+        { pos: { x: halfSize - pictureOffset, y: pictureY, z: 0 }, rot: Math.PI / 2 },
+        { pos: { x: 14, y: pictureY, z: -halfSize + pictureOffset }, rot: 0 },
         { pos: { x: -halfSize - pictureOffset, y: pictureY, z: 25 }, rot: Math.PI / 2 },
         { pos: { x: halfSize + pictureOffset, y: pictureY, z: -25 }, rot: -Math.PI / 2 },
-        { pos: { x: halfSize + pictureOffset, y: pictureY, z: 0 }, rot: -Math.PI / 2 },
+        { pos: { x: 12, y: pictureY, z: halfSize - pictureOffset }, rot: Math.PI },
         { pos: { x: halfSize + pictureOffset, y: pictureY, z: 25 }, rot: -Math.PI / 2 },
-        { pos: { x: -18, y: pictureY, z: -halfSize - pictureOffset }, rot: 0 },
-        { pos: { x: 0, y: pictureY, z: -halfSize - pictureOffset }, rot: 0 },
-        { pos: { x: 25, y: pictureY, z: -halfSize - pictureOffset }, rot: 0 },
-        { pos: { x: -25, y: pictureY, z: halfSize + pictureOffset }, rot: Math.PI },
-        { pos: { x: -12, y: pictureY, z: halfSize + pictureOffset }, rot: Math.PI },
-        { pos: { x: 25, y: pictureY, z: halfSize + pictureOffset }, rot: Math.PI },
-        { pos: { x: -20 - pictureOffset, y: pictureY, z: -20 }, rot: -Math.PI / 2 },
-        { pos: { x: -20 - pictureOffset, y: pictureY, z: 20 }, rot: Math.PI / 2 },
-        { pos: { x: 20 + pictureOffset, y: pictureY, z: -20 }, rot: -Math.PI / 2 },
+        { pos: { x: -8, y: pictureY, z: -halfSize + pictureOffset }, rot: 0 },
+        { pos: { x: 2, y: pictureY, z: -halfSize + pictureOffset }, rot: 0 },
+        { pos: { x: 30, y: pictureY, z: -halfSize + pictureOffset }, rot: 0 },
+        { pos: { x: -20 - pictureOffset, y: pictureY, z: -20 }, rot: Math.PI / 2 },
+        { pos: { x: -12, y: pictureY, z: halfSize - pictureOffset }, rot: Math.PI },
+        { pos: { x: 26, y: pictureY, z: 12 + pictureOffset }, rot: 0 },
+        { pos: { x: -20 + pictureOffset, y: pictureY, z: -20 }, rot: -Math.PI / 2 },
+        { pos: { x: -20 + pictureOffset, y: pictureY, z: 20 }, rot: -Math.PI / 2 },
+        { pos: { x: 20 - pictureOffset, y: pictureY, z: -20 }, rot: Math.PI / 2 },
         { pos: { x: 20 + pictureOffset, y: pictureY, z: 20 }, rot: -Math.PI / 2 },
-        { pos: { x: -26, y: pictureY, z: -12 - pictureOffset }, rot: 0 },
-        { pos: { x: -14, y: pictureY, z: -12 - pictureOffset }, rot: 0 },
-        { pos: { x: 14, y: pictureY, z: -12 - pictureOffset }, rot: 0 },
-        { pos: { x: 26, y: pictureY, z: -12 - pictureOffset }, rot: 0 },
-        { pos: { x: -26, y: pictureY, z: 12 + pictureOffset }, rot: Math.PI },
-        { pos: { x: -14, y: pictureY, z: 12 + pictureOffset }, rot: Math.PI },
-        { pos: { x: 14, y: pictureY, z: 12 + pictureOffset }, rot: Math.PI },
-        { pos: { x: 26, y: pictureY, z: 12 + pictureOffset }, rot: Math.PI }
+        { pos: { x: 26, y: pictureY, z: -12 - pictureOffset }, rot: Math.PI },
+        { pos: { x: -14, y: pictureY, z: -12 + pictureOffset }, rot: 0 },
+        { pos: { x: 14, y: pictureY, z: -12 + pictureOffset }, rot: 0 },
+        { pos: { x: -24, y: pictureY, z: halfSize - pictureOffset }, rot: Math.PI },
+        { pos: { x: halfSize - pictureOffset, y: pictureY, z: -10 }, rot: Math.PI / 2 },
+        { pos: { x: -14, y: pictureY, z: 12 - pictureOffset }, rot: Math.PI },
+        { pos: { x: 14, y: pictureY, z: 12 - pictureOffset }, rot: Math.PI },
+        { pos: { x: 28, y: pictureY, z: halfSize + pictureOffset }, rot: Math.PI }
     ];
     const pictureSizeLandscape = 8;
     const pictureHeightLandscape = 5.5;
     const pictureSizePortrait = 5.5;
     const pictureHeightPortrait = 7.5;
+    // 비율 유지, 작품별 크기 다양화 (0.8 ~ 1.2)
+    const sizeScale = [1.0, 0.9, 1.1, 0.85, 1.15, 0.95, 1.05, 1.0, 0.9, 1.1, 0.88, 1.12, 0.92, 1.08, 1.0, 0.95, 1.05, 0.9, 1.1, 0.85, 1.15, 0.98, 1.02, 0.92];
     const totalFrames = positions.length; // 33 (24 + 빈벽 9곳)
     for (let i = 0; i < totalFrames; i++) {
         const p = positions[i];
         const imgIndex = i % 24;
         const isPortrait = portraitIndices.includes(imgIndex);
-        const picW = isPortrait ? pictureSizePortrait : pictureSizeLandscape;
-        const picH = isPortrait ? pictureHeightPortrait : pictureHeightLandscape;
+        let picW = isPortrait ? pictureSizePortrait : pictureSizeLandscape;
+        let picH = isPortrait ? pictureHeightPortrait : pictureHeightLandscape;
+        const scale = sizeScale[imgIndex] ?? 1;
+        picW *= scale;
+        picH *= scale;
         const imageUrl = imageFiles[imgIndex];
         const info = createArtworkInfo(
             artworkTitles[imgIndex],
