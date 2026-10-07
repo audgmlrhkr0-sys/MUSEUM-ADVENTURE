@@ -51,6 +51,41 @@ let moveForward = false;
 let moveBackward = false;
 let moveLeft = false;
 let moveRight = false;
+let gamepadMoveX = 0;
+let gamepadMoveY = 0;
+
+const GAMEPAD_DEADZONE = 0.18;
+
+function applyGamepadDeadzone(value) {
+    const magnitude = Math.abs(value);
+    if (magnitude <= GAMEPAD_DEADZONE) return 0;
+    return Math.sign(value) * (magnitude - GAMEPAD_DEADZONE) / (1 - GAMEPAD_DEADZONE);
+}
+
+function updateGamepadMovement() {
+    gamepadMoveX = 0;
+    gamepadMoveY = 0;
+
+    if (gameOver || isDialogOpen || !navigator.getGamepads) return;
+
+    const gamepads = navigator.getGamepads();
+    for (let i = 0; i < gamepads.length; i++) {
+        const gamepad = gamepads[i];
+        if (!gamepad || !gamepad.connected) continue;
+
+        // 표준 게임패드의 왼쪽 스틱과 방향 패드를 모두 지원한다.
+        const stickX = applyGamepadDeadzone(gamepad.axes[0] || 0);
+        const stickY = applyGamepadDeadzone(gamepad.axes[1] || 0);
+        const dpadX = (gamepad.buttons[15] && gamepad.buttons[15].pressed ? 1 : 0)
+            - (gamepad.buttons[14] && gamepad.buttons[14].pressed ? 1 : 0);
+        const dpadY = (gamepad.buttons[13] && gamepad.buttons[13].pressed ? 1 : 0)
+            - (gamepad.buttons[12] && gamepad.buttons[12].pressed ? 1 : 0);
+
+        gamepadMoveX = Math.abs(dpadX) > Math.abs(stickX) ? dpadX : stickX;
+        gamepadMoveY = Math.abs(dpadY) > Math.abs(stickY) ? dpadY : stickY;
+        return;
+    }
+}
 
 let prevTime = performance.now();
 const velocity = new THREE.Vector3();
@@ -97,6 +132,8 @@ function resetMovementKeys() {
     moveBackward = false;
     moveLeft = false;
     moveRight = false;
+    gamepadMoveX = 0;
+    gamepadMoveY = 0;
 }
 
 function onPointerLockChange() {
@@ -1972,6 +2009,7 @@ function animate() {
                          document.webkitPointerLockElement;
     
     if (lockedElement === canvas || lockedElement === document.body) {
+        updateGamepadMovement();
 
         // 마찰 적용 (이동 중일 때만)
         if (!isMoving) {
@@ -1999,19 +2037,24 @@ function animate() {
         // 카메라의 월드 행렬을 업데이트하여 최신 상태 반영
         camera.updateMatrixWorld(true);
         
+        _moveDir.set(0, 0, 0);
         if (moveForward) _moveDir.add(_forward);
         if (moveBackward) _moveDir.sub(_forward);
         if (moveLeft) _moveDir.sub(_right);
         if (moveRight) _moveDir.add(_right);
+        if (gamepadMoveY !== 0) _moveDir.addScaledVector(_forward, -gamepadMoveY);
+        if (gamepadMoveX !== 0) _moveDir.addScaledVector(_right, gamepadMoveX);
         _moveDir.y = 0;
         const moveLength = _moveDir.length();
         
         // 이동 상태 확인
-        isMoving = moveForward || moveBackward || moveLeft || moveRight;
+        isMoving = moveForward || moveBackward || moveLeft || moveRight
+            || Math.abs(gamepadMoveX) > 0.001 || Math.abs(gamepadMoveY) > 0.001;
         
         if (isMoving && moveLength > 0.001) {
+            const inputStrength = Math.min(1, moveLength);
             _moveDir.normalize();
-            const targetSpeed = 10.0;
+            const targetSpeed = 10.0 * inputStrength;
             const acceleration = 8.0;
             const targetVelocityX = _moveDir.x * targetSpeed;
             const targetVelocityZ = _moveDir.z * targetSpeed;
