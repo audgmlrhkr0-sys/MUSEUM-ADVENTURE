@@ -56,6 +56,7 @@ let gamepadMoveY = 0;
 let gamepadLookX = 0;
 let gamepadLookY = 0;
 let gamepadAPressed = false;
+let gamepadGameActive = false;
 
 const GAMEPAD_DEADZONE = 0.18;
 const GAMEPAD_LOOK_SPEED = 2.2;
@@ -72,7 +73,10 @@ function updateGamepadControls() {
     gamepadLookX = 0;
     gamepadLookY = 0;
 
-    if (gameOver || !navigator.getGamepads) return;
+    if (!navigator.getGamepads) {
+        gamepadAPressed = false;
+        return;
+    }
 
     const gamepads = navigator.getGamepads();
     for (let i = 0; i < gamepads.length; i++) {
@@ -81,7 +85,17 @@ function updateGamepadControls() {
 
         const aPressed = Boolean(gamepad.buttons[0] && gamepad.buttons[0].pressed);
         if (aPressed && !gamepadAPressed) {
-            if (isDialogOpen) {
+            const pointerLocked = Boolean(
+                document.pointerLockElement
+                || document.mozPointerLockElement
+                || document.webkitPointerLockElement
+            );
+
+            if (gameOver) {
+                restartGame(true);
+            } else if (!pointerLocked && !gamepadGameActive) {
+                startGameWithGamepad();
+            } else if (isDialogOpen) {
                 if (dialogState === 'initial') {
                     selectChoice();
                 } else {
@@ -94,11 +108,11 @@ function updateGamepadControls() {
         gamepadAPressed = aPressed;
 
         if (!isDialogOpen) {
-            // 왼쪽 스틱: 시점, 오른쪽 스틱: 이동
-            gamepadLookX = applyGamepadDeadzone(gamepad.axes[0] || 0);
-            gamepadLookY = applyGamepadDeadzone(gamepad.axes[1] || 0);
-            gamepadMoveX = applyGamepadDeadzone(gamepad.axes[2] || 0);
-            gamepadMoveY = applyGamepadDeadzone(gamepad.axes[3] || 0);
+            // 왼쪽 스틱: 이동, 오른쪽 스틱: 시점
+            gamepadMoveX = applyGamepadDeadzone(gamepad.axes[0] || 0);
+            gamepadMoveY = applyGamepadDeadzone(gamepad.axes[1] || 0);
+            gamepadLookX = applyGamepadDeadzone(gamepad.axes[2] || 0);
+            gamepadLookY = applyGamepadDeadzone(gamepad.axes[3] || 0);
         }
         return;
     }
@@ -2024,14 +2038,14 @@ function animate() {
     
     // delta 변수를 함수 시작 부분에서 정의 (모든 곳에서 사용 가능하도록)
     const delta = prevTime ? (time - prevTime) / 1000 : 0.016; // 초기 프레임은 60fps 가정
+    updateGamepadControls();
     
     const canvas = getCanvas();
     const lockedElement = document.pointerLockElement || 
                          document.mozPointerLockElement || 
                          document.webkitPointerLockElement;
     
-    if (lockedElement === canvas || lockedElement === document.body) {
-        updateGamepadControls();
+    if (lockedElement === canvas || lockedElement === document.body || gamepadGameActive) {
 
         // 마찰 적용 (이동 중일 때만)
         if (!isMoving) {
@@ -2579,6 +2593,7 @@ function triggerGameOver(reason) {
     if (gameOver) return; // 이미 게임오버면 중복 실행 방지
     
     gameOver = true;
+    gamepadGameActive = false;
     resetMovementKeys();
     velocity.set(0, 0, 0);
     
@@ -2622,6 +2637,7 @@ function triggerGameClear() {
     if (gameOver) return; // 이미 게임오버면 클리어 불가
     
     gameOver = true;
+    gamepadGameActive = false;
     resetMovementKeys();
     velocity.set(0, 0, 0);
     
@@ -2661,7 +2677,7 @@ function triggerGameClear() {
 }
 
 // 게임 다시 시작 함수
-function restartGame() {
+function restartGame(useGamepad = false) {
     // 게임 시작 안내문구 숨김 (재시작 시에는 표시하지 않음)
     if (!instructions) {
         instructions = document.getElementById('instructions');
@@ -2827,7 +2843,12 @@ function restartGame() {
     // 9. 대화창 닫기
     closeArtworkDialog();
     
-    // 10. 포인터 잠금 다시 요청 (게임 시작 화면 없이 바로 시작)
+    // 10. 사용 중인 입력 방식으로 게임을 다시 시작
+    if (useGamepad === true) {
+        startGameWithGamepad();
+        return;
+    }
+
     const canvas = renderer.domElement;
     if (canvas && canvas.requestPointerLock) {
         // instructions를 숨김 상태로 유지
@@ -2859,14 +2880,40 @@ window.addEventListener('resize', () => {
 // ESC 키로 포인터 잠금 해제
 document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
+        gamepadGameActive = false;
         const exitPointerLock = document.exitPointerLock || 
                                document.mozExitPointerLock || 
                                document.webkitExitPointerLock;
         if (exitPointerLock) {
             exitPointerLock.call(document);
         }
+        if (instructions && !gameOver) {
+            instructions.classList.remove('hidden');
+            document.body.classList.remove('locked');
+        }
     }
 });
+
+function startGameWithGamepad() {
+    if (gameOver) return;
+
+    gamepadGameActive = true;
+    if (!instructions) instructions = document.getElementById('instructions');
+    if (instructions) instructions.classList.add('hidden');
+    document.body.classList.add('locked');
+
+    updateInventory();
+    startTimer();
+    if (backgroundMusic && backgroundMusic.paused) {
+        backgroundMusic.play().catch(function() {});
+    }
+    if (!storyRespawnShown) {
+        storyRespawnShown = true;
+        setTimeout(function() {
+            showStoryDialogue('젠장, 문이 잠겼어... 어떻게든 나갈 방법을 찾아야 해.', 3000);
+        }, 900);
+    }
+}
 
 // 게임 시작 함수
 function startGame(event) {
